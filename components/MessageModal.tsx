@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import type { GoddessCardData, NewReading } from '../types';
 import { saveReading } from '../utils/storage';
 
@@ -9,26 +8,37 @@ interface MessageModalProps {
   onClose: () => void;
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-const generateSingleCardMessagePrompt = (card: GoddessCardData) => 
-  `あなたは神聖な神託です。女神「${card.name}」（${card.description}）からのメッセージを伝えてください。元のメッセージは「${card.message}」です。この情報に基づき、より深く、洞察に満ちた、パーソナライズされた神託のメッセージを、女神自身が語りかけるような、優しく力強い口調で生成してください。メッセージは550文字以内とし、適度に改行を入れて読みやすくしてください。`;
-
-const generateThreeCardSpreadMessagePrompt = (cards: GoddessCardData[]) => 
-  `あなたは神聖な神託です。過去、現在、未来を占う3枚引きのリーディングを行います。
-過去のカードは「${cards[0].name}」（${cards[0].description}）。
-現在のカードは「${cards[1].name}」（${cards[1].description}）。
-未来のカードは「${cards[2].name}」（${cards[2].description}）。
-これら3枚のカードの組み合わせを解釈し、それぞれのカードについて、その位置（過去、現在、未来）に応じた、深く洞察に満ちたメッセージを生成してください。3つのメッセージは互いに関連し合い、一つの物語のように繋がるようにしてください。女神が直接語りかけるような、優しく力強い口調でお願いします。`;
-
-const threeCardResponseSchema = {
-    type: Type.OBJECT,
-    properties: {
-        past: { type: Type.STRING, description: "過去のカードに関するメッセージです。" },
-        present: { type: Type.STRING, description: "現在のカードに関するメッセージです。" },
-        future: { type: Type.STRING, description: "未来のカードに関するメッセージです。" },
+// API call functions for secure backend communication
+const callMessageAPI = async (cards: GoddessCardData[], mode: 'single' | 'three') => {
+  const response = await fetch('/api/generateMessage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
-    required: ["past", "present", "future"],
+    body: JSON.stringify({ cards, mode }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`メッセージ生成APIエラー: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const callImageAPI = async (prompt: string) => {
+  const response = await fetch('/api/generateImage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`画像生成APIエラー: ${response.status}`);
+  }
+
+  return response.json();
 };
 
 const LoadingSpinner: React.FC<{ text: string }> = ({ text }) => (
@@ -121,17 +131,8 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         const imagePromise = (async () => {
           try {
             const imagePrompt = `「${cards[0].name}」（${cards[0].description}）の、神々しく美しい芸術的な肖像画。幻想的で優美な雰囲気で。`;
-            const response = await ai.models.generateImages({
-              model: 'imagen-4.0-generate-001',
-              prompt: imagePrompt,
-              config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: '3:4',
-              },
-            });
-            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-            const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+            const response = await callImageAPI(imagePrompt);
+            const imageUrl = response.imageUrl;
             setGeneratedImageUrl(imageUrl);
             return imageUrl;
           } catch (err) {
@@ -145,14 +146,10 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
 
         const messagePromise = (async () => {
           try {
-            const prompt = generateSingleCardMessagePrompt(cards[0]);
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
-            });
-            const message = response.text;
-            setGeneratedMessages([message]);
-            return [message];
+            const response = await callMessageAPI([cards[0]], 'single');
+            const messages = response.messages;
+            setGeneratedMessages(messages);
+            return messages;
           } catch (err) {
             console.error('Message generation error:', err);
             const fallbackMessage = [cards[0].message];
@@ -166,17 +163,8 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         finalMessages = messages;
 
       } else { // mode === 'three'
-        const prompt = generateThreeCardSpreadMessagePrompt(cards);
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: threeCardResponseSchema,
-          },
-        });
-        const jsonResponse = JSON.parse(response.text);
-        const messages = [jsonResponse.past, jsonResponse.present, jsonResponse.future];
+        const response = await callMessageAPI(cards, 'three');
+        const messages = response.messages;
         setGeneratedMessages(messages);
         finalMessages = messages;
       }

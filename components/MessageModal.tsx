@@ -9,6 +9,48 @@ interface MessageModalProps {
 }
 
 
+// Generate goddess-specific image prompt
+const generateGoddessPrompt = (card: GoddessCardData) => {
+  const baseName = card.name;
+  const baseDesc = card.description;
+
+  // Base prompt ensuring portrait
+  let prompt = `Divine portrait of goddess ${baseName}, ethereal feminine deity`;
+
+  // Add goddess-specific visual attributes based on description
+  const desc = baseDesc.toLowerCase();
+
+  if (desc.includes('愛') || desc.includes('美')) {
+    prompt += ', radiant beauty, rose petals, golden light';
+  }
+  if (desc.includes('月')) {
+    prompt += ', silver moonlight, crescent crown, nocturnal magic';
+  }
+  if (desc.includes('戦') || desc.includes('狩猟')) {
+    prompt += ', fierce elegance, warrior goddess, determined gaze';
+  }
+  if (desc.includes('海') || desc.includes('水')) {
+    prompt += ', flowing like water, pearl ornaments, oceanic blues';
+  }
+  if (desc.includes('火') || desc.includes('太陽')) {
+    prompt += ', golden flames, solar radiance, warm amber light';
+  }
+  if (desc.includes('大地') || desc.includes('豊穣')) {
+    prompt += ', earth goddess, floral crown, natural abundance';
+  }
+  if (desc.includes('知恵')) {
+    prompt += ', wise expression, mysterious knowledge, ancient wisdom';
+  }
+  if (desc.includes('芸術') || desc.includes('音楽')) {
+    prompt += ', artistic inspiration, creative aura, melodic beauty';
+  }
+
+  // Conclude with artistic style ensuring portrait
+  prompt += ', elegant portrait composition, fantasy art, ethereal atmosphere, mystical beauty, goddess portrait painting';
+
+  return prompt;
+};
+
 // API call functions for secure backend communication
 const callMessageAPI = async (cards: GoddessCardData[], mode: 'single' | 'three') => {
   try {
@@ -149,7 +191,7 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         
         const imagePromise = (async () => {
           try {
-            const imagePrompt = `Portrait of ${cards[0].name}, goddess of ${cards[0].description}, beautiful divine feminine woman, front view, face visible, looking at viewer, elegant features, flowing hair, glowing skin, mystical aura, ethereal beauty, fantasy art style, detailed portrait painting`;
+            const imagePrompt = generateGoddessPrompt(cards[0]);
             console.log('🎨 Image generation prompt:', imagePrompt);
             console.log('📋 Card data:', cards[0]);
             const response = await callImageAPI(imagePrompt);

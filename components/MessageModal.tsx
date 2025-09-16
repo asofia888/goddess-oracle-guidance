@@ -149,7 +149,7 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         
         const imagePromise = (async () => {
           try {
-            const imagePrompt = `「（${cards[0].name}）」（（${cards[0].description}））の、神々しく美しい芸術的な肖像画。幻想的で優美な雰囲気で。`;
+            const imagePrompt = `Portrait of ${cards[0].name}, goddess of ${cards[0].description}, beautiful divine feminine woman, front view, face visible, looking at viewer, elegant features, flowing hair, glowing skin, mystical aura, ethereal beauty, fantasy art style, detailed portrait painting`;
             console.log('🎨 Image generation prompt:', imagePrompt);
             console.log('📋 Card data:', cards[0]);
             const response = await callImageAPI(imagePrompt);

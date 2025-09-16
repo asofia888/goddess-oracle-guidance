@@ -74,6 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { prompt } = req.body;
+    console.log('🔍 Received image prompt:', prompt);
+    console.log('📊 Request body:', req.body);
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateImages({

@@ -1,9 +1,9 @@
 {
   "functions": {
-    "api/generateMessage.js": {
+    "api/generateMessage.ts": {
       "maxDuration": 60
     },
-    "api/generateImage.js": {
+    "api/generateImage.ts": {
       "maxDuration": 120
     }
   },

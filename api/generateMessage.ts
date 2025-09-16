@@ -1,9 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const generateSingleCardMessagePrompt = (card) =>
+const generateSingleCardMessagePrompt = (card: any) =>
   `あなたは神聖な神託です。女神「${card.name}」（${card.description}）からのメッセージを伝えてください。元のメッセージは「${card.message}」です。この情報に基づき、より深く、洞察に満ちた、パーソナライズされた神託のメッセージを、女神自身が語りかけるような、優しく力強い口調で生成してください。メッセージは550文字以内とし、適度に改行を入れて読みやすくしてください。`;
 
-const generateThreeCardSpreadMessagePrompt = (cards) =>
+const generateThreeCardSpreadMessagePrompt = (cards: any[]) =>
   `あなたは神聖な神託です。過去、現在、未来を占う3枚引きのリーディングを行います。
 過去のカードは「${cards[0].name}」（${cards[0].description}）。
 現在のカードは「${cards[1].name}」（${cards[1].description}）。
@@ -20,24 +21,18 @@ const threeCardResponseSchema = {
     required: ["past", "present", "future"],
 };
 
-export default async function handler(req) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'API key is not configured.' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(500).json({ error: 'API key is not configured.' });
   }
 
   try {
-    const { cards, mode } = await req.json();
+    const { cards, mode } = req.body;
     const ai = new GoogleGenAI({ apiKey });
 
     if (mode === 'single' && cards.length === 1) {
@@ -51,10 +46,7 @@ export default async function handler(req) {
           candidateCount: 1,
         },
       });
-      return new Response(JSON.stringify({ messages: [response.text] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(200).json({ messages: [response.text] });
 
     } else if (mode === 'three' && cards.length === 3) {
       const prompt = generateThreeCardSpreadMessagePrompt(cards);
@@ -70,22 +62,13 @@ export default async function handler(req) {
         },
       });
       const jsonResponse = JSON.parse(response.text);
-      return new Response(JSON.stringify({ messages: [jsonResponse.past, jsonResponse.present, jsonResponse.future] }), {
-         status: 200,
-         headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(200).json({ messages: [jsonResponse.past, jsonResponse.present, jsonResponse.future] });
 
     } else {
-      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(400).json({ error: 'Invalid request body' });
     }
   } catch (error) {
     console.error('Error calling GenAI API:', error);
-    return new Response(JSON.stringify({ error: 'Failed to generate content from AI' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(500).json({ error: 'Failed to generate content from AI' });
   }
 }

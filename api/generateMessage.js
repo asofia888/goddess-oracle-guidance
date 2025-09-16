@@ -43,7 +43,7 @@ export default async function handler(req) {
     if (mode === 'single' && cards.length === 1) {
       const prompt = generateSingleCardMessagePrompt(cards[0]);
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         generationConfig: {
           maxOutputTokens: 200,
@@ -59,7 +59,7 @@ export default async function handler(req) {
     } else if (mode === 'three' && cards.length === 3) {
       const prompt = generateThreeCardSpreadMessagePrompt(cards);
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         generationConfig: {
           maxOutputTokens: 400,

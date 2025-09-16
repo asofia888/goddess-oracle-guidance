@@ -81,7 +81,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       prompt: prompt,
       config: {
         numberOfImages: 1,
-        includeRaiReason: false
+        includeRaiReason: false,
+        aspectRatio: '3:4',
+        outputMimeType: 'image/jpeg'
       }
     });
 

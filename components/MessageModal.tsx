@@ -8,6 +8,39 @@ interface MessageModalProps {
   onClose: () => void;
 }
 
+// Generate enhanced image prompt for goddess
+const generateGoddessImagePrompt = (card: GoddessCardData) => {
+  const basePrompt = `Beautiful ethereal goddess portrait of ${card.name}, divine feminine deity`;
+
+  // Add specific attributes based on goddess description
+  let attributes = [];
+  const desc = card.description.toLowerCase();
+
+  // Add description-based attributes
+  if (desc.includes('愛') || desc.includes('beauty') || desc.includes('美')) {
+    attributes.push('radiant beauty', 'loving expression', 'rose-colored aura');
+  }
+  if (desc.includes('月') || desc.includes('moon')) {
+    attributes.push('lunar crown', 'silver moonlight', 'crescent moon symbols');
+  }
+  if (desc.includes('戦') || desc.includes('war') || desc.includes('戦い')) {
+    attributes.push('fierce expression', 'warrior goddess', 'golden armor elements');
+  }
+  if (desc.includes('海') || desc.includes('水') || desc.includes('ocean')) {
+    attributes.push('flowing water elements', 'pearl accessories', 'oceanic colors');
+  }
+  if (desc.includes('火') || desc.includes('太陽') || desc.includes('sun')) {
+    attributes.push('golden flames', 'solar crown', 'warm golden light');
+  }
+  if (desc.includes('大地') || desc.includes('earth') || desc.includes('豊穣')) {
+    attributes.push('earth goddess', 'floral crown', 'natural elements');
+  }
+
+  const attributeString = attributes.length > 0 ? attributes.join(', ') + ', ' : '';
+
+  return `${basePrompt}, ${attributeString}elegant flowing hair, glowing skin, mystical aura, ornate jewelry, flowing robes, celestial background, digital art style, fantasy art, highly detailed, magical atmosphere, sacred feminine energy, divine light, portrait orientation, centered composition, masterpiece quality`;
+};
+
 // API call functions for secure backend communication
 const callMessageAPI = async (cards: GoddessCardData[], mode: 'single' | 'three') => {
   const response = await fetch('/api/generateMessage', {
@@ -130,7 +163,7 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         
         const imagePromise = (async () => {
           try {
-            const imagePrompt = `「${cards[0].name}」（${cards[0].description}）の、神々しく美しい芸術的な肖像画。幻想的で優美な雰囲気で。`;
+            const imagePrompt = generateGoddessImagePrompt(cards[0]);
             const response = await callImageAPI(imagePrompt);
             const imageUrl = response.imageUrl;
             setGeneratedImageUrl(imageUrl);

@@ -15,20 +15,36 @@ export const getReadings = (): SavedReading[] => {
 export const saveReading = (reading: NewReading) => {
   try {
     const readings = getReadings();
+
+    // Create new reading without storing large image data
     const newReading: SavedReading = {
       ...reading,
       id: new Date().toISOString(),
       date: new Date().toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      // Don't save base64 image data to prevent localStorage quota issues
+      generatedImageUrl: null
     };
-    
+
     const updatedReadings = [newReading, ...readings];
 
-    // Optional: Limit the history size to prevent localStorage from getting too large
-    if (updatedReadings.length > 50) {
-      updatedReadings.splice(50);
+    // Limit the history size to prevent localStorage from getting too large
+    if (updatedReadings.length > 20) {
+      updatedReadings.splice(20);
     }
 
-    localStorage.setItem(JOURNAL_KEY, JSON.stringify(updatedReadings));
+    // Try to save, if it fails due to quota, clear some old data
+    try {
+      localStorage.setItem(JOURNAL_KEY, JSON.stringify(updatedReadings));
+    } catch (quotaError) {
+      if (quotaError.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded, clearing old readings...');
+        // Keep only the 10 most recent readings
+        const reducedReadings = updatedReadings.slice(0, 10);
+        localStorage.setItem(JOURNAL_KEY, JSON.stringify(reducedReadings));
+      } else {
+        throw quotaError;
+      }
+    }
   } catch (error) {
     console.error("Error saving to localStorage", error);
   }

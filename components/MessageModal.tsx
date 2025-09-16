@@ -11,35 +11,53 @@ interface MessageModalProps {
 
 // API call functions for secure backend communication
 const callMessageAPI = async (cards: GoddessCardData[], mode: 'single' | 'three') => {
-  const response = await fetch('/api/generateMessage', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ cards, mode }),
-  });
+  try {
+    const response = await fetch('/api/generateMessage', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ cards, mode }),
+      signal: AbortSignal.timeout(30000), // 30 second timeout
+    });
 
-  if (!response.ok) {
-    throw new Error(`メッセージ生成APIエラー: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`メッセージ生成APIエラー: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('リクエストがタイムアウトしました');
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 const callImageAPI = async (prompt: string) => {
-  const response = await fetch('/api/generateImage', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prompt }),
-  });
+  try {
+    const response = await fetch('/api/generateImage', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt }),
+      signal: AbortSignal.timeout(60000), // 60 second timeout for image generation
+    });
 
-  if (!response.ok) {
-    throw new Error(`画像生成APIエラー: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`画像生成APIエラー: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('画像生成がタイムアウトしました');
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 const LoadingSpinner: React.FC<{ text: string }> = ({ text }) => (
@@ -131,7 +149,7 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         
         const imagePromise = (async () => {
           try {
-            const imagePrompt = `「${cards[0].name}」（${cards[0].description}）の、神々しく美しい芸術的な肖像画。幻想的で優美な雰囲気で。`;
+            const imagePrompt = `Beautiful portrait of goddess ${cards[0].name} (${cards[0].description}), divine feminine figure, elegant woman, flowing hair, mystical aura, fantasy art, digital painting style, portrait orientation`;
             const response = await callImageAPI(imagePrompt);
             const imageUrl = response.imageUrl;
             setGeneratedImageUrl(imageUrl);

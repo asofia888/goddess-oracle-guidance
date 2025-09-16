@@ -77,14 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateImages({
-      model: 'imagen-3.0-fast-generate-001',
+      model: 'imagen-3.0-generate-002',
       prompt: prompt,
       config: {
         numberOfImages: 1,
-        outputMimeType: 'image/jpeg',
-        aspectRatio: '2:3',
-        seed: Math.floor(Math.random() * 1000000),
-      },
+        includeRaiReason: false
+      }
     });
 
     const base64ImageBytes = response.generatedImages[0].image.imageBytes;
@@ -92,8 +90,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ imageUrl });
 
-  } catch (error) {
-    console.error('Error calling Imagen API:', error);
-    return res.status(500).json({ error: 'Failed to generate image from AI' });
+  } catch (error: any) {
+    console.error('Error calling Imagen API:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      details: error.details
+    });
+
+    // Return more specific error information
+    let errorMessage = 'Failed to generate image from AI';
+    if (error.message?.includes('API key')) {
+      errorMessage = 'API key is invalid or missing';
+    } else if (error.message?.includes('quota')) {
+      errorMessage = 'API quota exceeded';
+    } else if (error.message?.includes('permission')) {
+      errorMessage = 'API permission denied';
+    }
+
+    return res.status(500).json({
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }

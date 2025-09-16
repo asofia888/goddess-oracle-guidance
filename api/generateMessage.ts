@@ -143,8 +143,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       return res.status(400).json({ error: 'Invalid request body' });
     }
-  } catch (error) {
-    console.error('Error calling GenAI API:', error);
-    return res.status(500).json({ error: 'Failed to generate content from AI' });
+  } catch (error: any) {
+    console.error('Error calling GenAI API:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      details: error.details
+    });
+
+    // Return more specific error information
+    let errorMessage = 'Failed to generate content from AI';
+    if (error.message?.includes('API key')) {
+      errorMessage = 'API key is invalid or missing';
+    } else if (error.message?.includes('quota')) {
+      errorMessage = 'API quota exceeded';
+    } else if (error.message?.includes('permission')) {
+      errorMessage = 'API permission denied';
+    }
+
+    return res.status(500).json({
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }

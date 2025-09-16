@@ -149,7 +149,7 @@ const MessageModal: React.FC<MessageModalProps> = ({ cards, isOpen, onClose }) =
         
         const imagePromise = (async () => {
           try {
-            const imagePrompt = `「${cards[0].name}」（${cards[0].description}）の、神々しく美しい芸術的な肖像画。幻想的で優美な雰囲気で。`;
+            const imagePrompt = `「（${cards[0].name}）」（（${cards[0].description}））の、神々しく美しい芸術的な肖像画。幻想的で優美な雰囲気で。`;
             const response = await callImageAPI(imagePrompt);
             const imageUrl = response.imageUrl;
             setGeneratedImageUrl(imageUrl);

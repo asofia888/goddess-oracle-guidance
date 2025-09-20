@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getProductionCSP } from '../utils/csp';
 
 // Enhanced security configuration for image generation
 const SECURITY_CONFIG = {
@@ -120,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('X-Download-Options', 'noopen');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://generativelanguage.googleapis.com;");
+  res.setHeader('Content-Security-Policy', getProductionCSP());
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });

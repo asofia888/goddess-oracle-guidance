@@ -1,0 +1,36 @@
+{
+  "name": "女神のオラクルガイダンス",
+  "short_name": "女神オラクル",
+  "description": "神秘的な女神たちからの導きとメッセージを受け取るオラクルカードアプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3e8ff",
+  "theme_color": "#7c2d12",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["entertainment", "lifestyle", "games"],
+  "lang": "ja"
+}

@@ -1,15 +1,53 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Enhanced security configuration
+const SECURITY_CONFIG = {
+  RATE_LIMIT: 10,
+  RATE_LIMIT_WINDOW: 60 * 1000,
+  MAX_CARD_NAME_LENGTH: 100,
+  MAX_CARD_DESC_LENGTH: 200,
+  MAX_REQUEST_SIZE: 10000,
+  BLOCKED_PATTERNS: [/script/gi, /<[^>]*>/g, /javascript:/gi, /vbscript:/gi]
+};
+
 // Rate limiting tracking
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 10; // requests per minute
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const securityLogMap = new Map<string, { attempts: number; lastAttempt: number }>();
 
-// Input validation
+// Enhanced API key validation
+const validateApiKey = (apiKey: string | undefined): { isValid: boolean; error?: string } => {
+  if (!apiKey) {
+    return { isValid: false, error: 'API key is not configured' };
+  }
+
+  if (apiKey.includes('PLACEHOLDER') || apiKey.length < 20) {
+    return { isValid: false, error: 'Invalid API key configuration' };
+  }
+
+  return { isValid: true };
+};
+
+// Enhanced security validation
+const validateSecurity = (content: string): { isValid: boolean; error?: string } => {
+  for (const pattern of SECURITY_CONFIG.BLOCKED_PATTERNS) {
+    if (pattern.test(content)) {
+      return { isValid: false, error: 'Content contains blocked patterns' };
+    }
+  }
+  return { isValid: true };
+};
+
+// Enhanced input validation
 const validateRequest = (body: any): { isValid: boolean; error?: string } => {
   if (!body || typeof body !== 'object') {
     return { isValid: false, error: 'Invalid request body' };
+  }
+
+  // Check request size
+  const requestSize = JSON.stringify(body).length;
+  if (requestSize > SECURITY_CONFIG.MAX_REQUEST_SIZE) {
+    return { isValid: false, error: 'Request payload too large' };
   }
 
   const { cards, mode } = body;
@@ -30,27 +68,62 @@ const validateRequest = (body: any): { isValid: boolean; error?: string } => {
     return { isValid: false, error: 'Three mode requires exactly 3 cards' };
   }
 
-  // Validate card structure
+  // Enhanced card structure validation
   for (const card of cards) {
-    if (!card || typeof card !== 'object' || !card.name || !card.description) {
+    if (!card || typeof card !== 'object') {
       return { isValid: false, error: 'Invalid card structure' };
+    }
+
+    if (!card.name || typeof card.name !== 'string' || card.name.length > SECURITY_CONFIG.MAX_CARD_NAME_LENGTH) {
+      return { isValid: false, error: 'Invalid card name' };
+    }
+
+    if (!card.description || typeof card.description !== 'string' || card.description.length > SECURITY_CONFIG.MAX_CARD_DESC_LENGTH) {
+      return { isValid: false, error: 'Invalid card description' };
+    }
+
+    // Security validation for card content
+    const nameValidation = validateSecurity(card.name);
+    if (!nameValidation.isValid) {
+      return nameValidation;
+    }
+
+    const descValidation = validateSecurity(card.description);
+    if (!descValidation.isValid) {
+      return descValidation;
     }
   }
 
   return { isValid: true };
 };
 
-// Rate limiting check
+// Enhanced rate limiting with security monitoring
 const checkRateLimit = (ip: string): { allowed: boolean; error?: string } => {
   const now = Date.now();
   const clientData = rateLimitMap.get(ip);
+  const securityData = securityLogMap.get(ip);
+
+  // Security monitoring
+  if (securityData) {
+    securityData.attempts++;
+    securityData.lastAttempt = now;
+
+    // Block suspicious IPs with too many attempts
+    if (securityData.attempts > 100 && (now - securityData.lastAttempt) < 3600000) { // 1 hour
+      console.warn(`Suspicious activity detected from IP: ${ip}`);
+      return { allowed: false, error: 'IP temporarily blocked due to suspicious activity' };
+    }
+  } else {
+    securityLogMap.set(ip, { attempts: 1, lastAttempt: now });
+  }
 
   if (!clientData || now > clientData.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    rateLimitMap.set(ip, { count: 1, resetTime: now + SECURITY_CONFIG.RATE_LIMIT_WINDOW });
     return { allowed: true };
   }
 
-  if (clientData.count >= RATE_LIMIT) {
+  if (clientData.count >= SECURITY_CONFIG.RATE_LIMIT) {
+    console.warn(`Rate limit exceeded for IP: ${ip}`);
     return { allowed: false, error: 'Rate limit exceeded. Please try again later.' };
   }
 
@@ -79,11 +152,16 @@ const threeCardResponseSchema = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Security headers
+  // Enhanced security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('X-Download-Options', 'noopen');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://generativelanguage.googleapis.com;");
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -102,9 +180,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: validation.error });
   }
 
+  // Enhanced API key validation
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key is not configured.' });
+  const apiKeyValidation = validateApiKey(apiKey);
+  if (!apiKeyValidation.isValid) {
+    console.error('API key validation failed:', apiKeyValidation.error);
+    return res.status(500).json({ error: 'Service temporarily unavailable' });
   }
 
   try {
@@ -144,13 +225,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid request body' });
     }
   } catch (error: any) {
-    console.error('Error calling GenAI API:', {
+    // Enhanced error logging with security awareness
+    const errorLog = {
+      timestamp: new Date().toISOString(),
+      ip: clientIp,
       message: error.message,
-      stack: error.stack,
       name: error.name,
       code: error.code,
-      details: error.details
-    });
+      // Don't log full stack traces in production for security
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+
+    console.error('GenAI API Error:', errorLog);
 
     // Return more specific error information
     let errorMessage = 'Failed to generate content from AI';
